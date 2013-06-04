@@ -1,4 +1,5 @@
 #include "UIEventDispatcher.h"
+#if 0
 #if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 UIEventDispatcher * UIEventDispatcher::_instance = NULL;
 UIEventDispatcher * UIEventDispatcher::sharedDispatcher(){
@@ -28,4 +29,5 @@ void UIEventDispatcher::removeListener(UIEventDelegate *l){
 void UIEventDispatcherHook(UINT m, WPARAM w, LPARAM l){
 	UIEventDispatcher::sharedDispatcher()->win32Key(m, w, l);
 }
+#endif
 #endif

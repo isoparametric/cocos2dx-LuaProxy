@@ -1,4 +1,5 @@
 #ifndef __UIEVENTDISPATCHER_H__
+#if 0
 #if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 #define __UIEVENTDISPATCHER_H__
 #include "cocos2d.h"
@@ -23,5 +24,6 @@ public:
 };
 void UIEventDispatcherHook(UINT m, WPARAM w, LPARAM l);
 
+#endif
 #endif
 #endif //__UIEVENTDISPATCHER_H__
