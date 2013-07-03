@@ -58,7 +58,7 @@ static int tolua_CCScale9Sprite_setContentSize(lua_State *l){
 	}
 #endif
 	CCScale9Sprite *o = (CCScale9Sprite *)tolua_tousertype(l, 1, NULL);
-	if(o)o->setContentSize(CCSizeMake(tolua_tonumber(l, 3, 0), tolua_tonumber(l, 4, 0)));
+	if(o)o->setContentSize(CCSizeMake(tolua_tonumber(l, 2, 0), tolua_tonumber(l, 3, 0)));
 	tolua_pushusertype(l, o, "CCScale9Sprite");
 	return 1;
 }
