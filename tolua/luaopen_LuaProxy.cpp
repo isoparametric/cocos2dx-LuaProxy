@@ -6,11 +6,10 @@
 #include "../ui/UIUtil.h"
 
 const char * getFullPathForFile(const char *p){
-	CCFileUtils *fu = CCFileUtils::sharedFileUtils();
 #if COCOS2D_VERSION < 0x00020100
-	return fu->fullPathFromRelativePath(p);
+	return CCFileUtils::sharedFileUtils()->fullPathFromRelativePath(p);
 #else
-	return fu->fullPathForFilename(p).c_str();
+	return CCFileUtils::sharedFileUtils()->fullPathFromRelativeFile(p, "");
 #endif
 }
 
@@ -56,38 +55,6 @@ static int tolua_LuaProxy_copyAssetFileToData(lua_State *l){
 	if(len){tolua_pushstring(l, tar.c_str());}
 	return 1;
 }
-//#include "iconv.h"
-//iconv
-/*static int tolua_iconv(lua_State *l){
-#ifndef TOLUA_RELEASE
-	tolua_Error err;
-	if(!tolua_isstring(l, 1, NULL, &err) || !tolua_isstring(l, 2, NULL, &err)
-		|| !tolua_isstring(l, 3, NULL, &err) || !tolua_isnoobj(l, 4, &err)){
-		tolua_error(l,"#ferror in function 'iconv'.",&err);
-		return 0;
-	}
-#endif
-	char *r = "";
-	const char *s = tolua_tostring(l, 1, r);
-	iconv_t h = iconv_open(tolua_tostring(l, 2, NULL), tolua_tostring(l, 3, NULL));
-	if(h != 0){
-		size_t len = strlen(s);
-		size_t lenout = len * 4;
-		const char **pin = &s;
-		char *outbuf = (char *)malloc(lenout);
-		memset(outbuf, 0, lenout);
-		if(-1 == libiconv(h, pin, &len, &outbuf, &lenout)){
-CCLog("iconv convert failed");
-			free(outbuf);
-		}else{
-CCLog("iconv converted, %s", outbuf);
-			r = outbuf;
-		}
-		iconv_close(h);
-	}
-	tolua_pushstring(l, r);
-	return 1;
-}*/
 // touchedNodesChild(CCNode *node, int x, int y, const char *toTypeName)
 static int tolua_LuaProxy_touchedNodesChild(lua_State *l){
 #ifndef TOLUA_RELEASE
@@ -141,12 +108,13 @@ static int tolua_LuaProxy_fileContentsForPath(lua_State *l){
 	const char *p = tolua_tostring(l, 1, NULL);
 	if(p && strlen(p) > 0){
 		unsigned long size = 0;
-		unsigned char *d = CCFileUtils::sharedFileUtils()->getFileData(getFullPathForFile(p), "rb", &size);
+		const char *fullPath = getFullPathForFile(p);
+		unsigned char *d = CCFileUtils::sharedFileUtils()->getFileData(fullPath, "rb", &size);
 		tolua_pushstring(l, CCString::createWithData(d, size)->getCString());
 	}
 	return 1;
 }
-
+//######################################## UIUtil ##########################
 // Util::createStroke(CCLabelTTF *l, float s, ccColor3B c)
 static int tolua_UIUtil_createStroke(lua_State *l){
 #ifndef TOLUA_RELEASE
@@ -180,7 +148,7 @@ static int tolua_UIUtil_shaderForKey(lua_State *l){
 	}
 	return 1;
 }
-
+// UIUtil::setShaderWithChildren(CCNode *n, CCGLProgram *p = NULL)
 static int tolua_UIUtil_setShaderWithChildren(lua_State *l){
 #ifndef TOLUA_RELEASE
 	tolua_Error err;
@@ -196,11 +164,168 @@ static int tolua_UIUtil_setShaderWithChildren(lua_State *l){
 	}
 	return 1;
 }
+// UIUtil::fixLabel(CCNode *n, float rate, bool withChild, const char *font = NULL)
+static int tolua_UIUtil_fixLabel(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!tolua_isnumber(l, 3, 0, &err) || !tolua_isboolean(l, 4, false, &err)){
+		tolua_error(l,"#ferror in function 'UIUtil.fixLabel'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, NULL);
+	if(n){
+		UIUtil::fixLabel(n, tolua_tonumber(l, 3, 1), tolua_toboolean(l, 4, false) > 0, tolua_tostring(l, 5, NULL));
+	}
+	return 1;
+}
+// UIUtil::fixParticle(CCNode *n, float dur, float life, bool withChild)
+static int tolua_UIUtil_fixParticle(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!tolua_isnumber(l, 3, 0, &err) || !tolua_isnumber(l, 4, 0, &err)){
+		tolua_error(l,"#ferror in function 'UIUtil.fixParticle'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, 0);
+	if(n){
+		UIUtil::fixParticle(n, tolua_tonumber(l, 3, 1), tolua_tonumber(l, 4, 0), tolua_toboolean(l, 5, false) > 0);
+	}
+	return 1;
+}
+// UIUtil::fixParticleWithHandler(CCNode *n, LuaEventHandler, bool withChild)
+static int tolua_UIUtil_fixParticleWithHandler(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!tolua_isusertype(l, 3, "LuaEventHandler", 0, &err)){
+		tolua_error(l,"#ferror in function 'UIUtil.fixParticle'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, 0);
+	LuaEventHandler *h = (LuaEventHandler *)tolua_tousertype(l, 3, 0);
+	if(n){
+		UIUtil::fixParticleWithHandler(n, h, tolua_toboolean(l, 4, false) > 0);
+	}
+	return 1;
+}
+// UIUtil::copyNode(CCNode *n)
+static int tolua_UIUtil_copyNode(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!(tolua_isboolean(l, 3, 0, &err) || tolua_isnoobj(l, 3, &err))){
+		tolua_error(l,"#ferror in function 'UIUtil.copyNode'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, 0);
+	CCNode *r = n? UIUtil::copyNode(n, tolua_toboolean(l, 3, 1) == 1) : NULL;
+	tolua_pushusertype(l, r, "CCNode");
+	return 1;
+}
+// UIUtil::duplicate(CCNode *node, CCNode *nodeFrom, const char *type)
+static int tolua_UIUtil_duplicate(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!tolua_isusertype(l, 3, "CCNode", 0, &err) || !tolua_isstring(l, 4, 0, &err)){
+		tolua_error(l,"#ferror in function 'UIUtil.duplicate'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, NULL);
+	CCNode *o = (CCNode *)tolua_tousertype(l, 3, NULL);
+	const char *t = tolua_tostring(l, 4, NULL);
+	if(strcmp(t, "CCScale9Sprite") == 0){		UIUtil::duplicate(dynamic_cast<CCScale9Sprite *>(n), dynamic_cast<CCScale9Sprite *>(o));}
+	else if(strcmp(t, "CCSprite") == 0){		UIUtil::duplicate(dynamic_cast<CCSprite *>(n), dynamic_cast<CCSprite *>(o));}
+	else if(strcmp(t, "CCLabelBMFont") == 0){	UIUtil::duplicate(dynamic_cast<CCLabelBMFont *>(n), dynamic_cast<CCLabelBMFont *>(o));}
+	else if(strcmp(t, "CCLabelTTF") == 0){		UIUtil::duplicate(dynamic_cast<CCLabelTTF *>(n), dynamic_cast<CCLabelTTF *>(o));}
+	else if(strcmp(t, "CCParticleSystem") == 0){UIUtil::duplicate(dynamic_cast<CCParticleSystem *>(n), dynamic_cast<CCParticleSystem *>(o));}
+	else if(strcmp(t, "CCParticleSystemQuad") == 0){UIUtil::duplicate(dynamic_cast<CCParticleSystemQuad *>(n), dynamic_cast<CCParticleSystemQuad *>(o));}
+	else if(strcmp(t, "CCControlButton") == 0){	UIUtil::duplicate(dynamic_cast<CCControlButton *>(n), dynamic_cast<CCControlButton *>(o));}
+	else if(strcmp(t, "CCLayer") == 0){			UIUtil::duplicate(dynamic_cast<CCLayer *>(n), dynamic_cast<CCLayer *>(o));}
+	else{	UIUtil::duplicate(n, o);}
+	return 1;
+}
+// UIUtil::changeParent(CCNode *n)
+static int tolua_UIUtil_changeParent(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!tolua_isusertype(l, 3, "CCNode", 0, &err) ||
+		!(tolua_isnumber(l, 4, 0, &err) || tolua_isnoobj(l, 4, &err)) ||
+		!(tolua_isnumber(l, 5, 0, &err) || tolua_isnoobj(l, 5, &err))){
+		tolua_error(l,"#ferror in function 'UIUtil.changeParent'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, NULL);
+	CCNode *np = (CCNode *)tolua_tousertype(l, 3, NULL);
+	UIUtil::changeParent(n, np, tolua_tonumber(l, 4, 0), tolua_tonumber(l, 5, -1));
+	tolua_pushusertype(l, n, "CCNode");
+	return 1;
+}
+// UIUtil::positionRelative(CCNode *n)
+static int tolua_UIUtil_positionRelative(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "UIUtil", 0, &err) || !tolua_isusertype(l, 2, "CCNode", 0, &err) ||
+		!tolua_isusertype(l, 3, "CCNode", 0, &err)){
+		tolua_error(l,"#ferror in function 'UIUtil.positionRelative'.",&err);
+		return 0;
+	}
+#endif
+	CCNode *n = (CCNode *)tolua_tousertype(l, 2, NULL);
+	CCNode *np = (CCNode *)tolua_tousertype(l, 3, NULL);
+	CCPoint p = UIUtil::positionRelative(n, np);
+	tolua_pushusertype(l, Mtolua_new((CCPoint)(p)), "CCPoint");
+	return 1;
+}
+
+//######################################## CCCameraEyeAction ##########################
+//CCCameraEyeAction::create(float dur, bool bTo, float x, float y, float z)
+static int tolua_CCCameraEyeAction_create(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertable(l, 1, "CCCameraEyeAction", 0, &err) || !tolua_isnumber(l, 2, 0, &err) ||
+		!tolua_isboolean(l, 3, 0, &err) || !tolua_isnumber(l, 4, 0, &err) || !tolua_isnumber(l, 5, 0, &err) || !tolua_isnumber(l, 6, 0, &err)){
+		tolua_error(l,"#ferror in function 'CCCameraEyeAction.create'.",&err);
+		return 0;
+	}
+#endif
+	CCCameraEyeAction *o = CCCameraEyeAction::create(tolua_tonumber(l, 2, 0), tolua_toboolean(l, 3, 0) == 1,
+		vertex3(tolua_tonumber(l, 4, 0), tolua_tonumber(l, 5, 0), tolua_tonumber(l, 6, 0)));
+	tolua_pushusertype(l, o, "CCCameraEyeAction");
+	return 1;
+}
+//CCCameraEyeAction::setStart(float x, float y, float z)
+static int tolua_CCCameraEyeAction_setStart(lua_State *l){
+#ifndef TOLUA_RELEASE
+	tolua_Error err;
+	if(!tolua_isusertype(l, 1, "CCCameraEyeAction", 0, &err) || !tolua_isnumber(l, 2, 0, &err) ||
+		!tolua_isnumber(l, 3, 0, &err) || !tolua_isnumber(l, 4, 0, &err)){
+		tolua_error(l,"#ferror in function 'CCCameraEyeAction.setStart'.",&err);
+		return 0;
+	}
+#endif
+	CCCameraEyeAction *o = (CCCameraEyeAction *)tolua_tousertype(l, 1, NULL);
+	if(o){
+		o->setStart(vertex3(tolua_tonumber(l, 2, 0), tolua_tonumber(l, 3, 0), tolua_tonumber(l, 4, 0)));
+	}
+	tolua_pushusertype(l, o, "CCCameraEyeAction");
+	return 1;
+}
 
 TOLUA_API int luaopen_LuaProxy(lua_State* l){
 	tolua_CC_Extension_open(l);
 	tolua_open(l);
 	tolua_usertype(l, "CCBProxy");
+	tolua_usertype(l, "CCCameraEyeAction");
 	tolua_usertype(l, "CursorTextField");
 	tolua_usertype(l, "LuaCallFuncInterval");
 	tolua_usertype(l, "LuaEventHandler");
@@ -227,7 +352,6 @@ TOLUA_API int luaopen_LuaProxy(lua_State* l){
 		tolua_constant(l, "CC_PLATFORM_MAC", CC_PLATFORM_MAC);
 		tolua_constant(l, "CC_PLATFORM_LINUX", CC_PLATFORM_LINUX);
 		tolua_constant(l, "CC_PLATFORM_UNKNOW", CC_PLATFORM_UNKNOWN);
-//		tolua_function(l, "iconv", tolua_iconv);
 		tolua_cclass(l,"CCBProxy","CCBProxy","CCLayer",NULL);
 		tolua_beginmodule(l,"CCBProxy");
 			tolua_function(l, "create", tolua_CCBProxy_create);
@@ -240,7 +364,9 @@ TOLUA_API int luaopen_LuaProxy(lua_State* l){
 #if (CC_TARGET_PLATFORM != CC_PLATFORM_WIN32)
 			tolua_function(l, "handleEditEvent", tolua_CCBProxy_handleEditEvent);
 #endif
-			tolua_function(l, "handleButtonEvent", tolua_CCBProxy_handleButtonEvent);
+			// Kept for compatible
+			tolua_function(l, "handleButtonEvent", tolua_CCBProxy_handleControlEvent);
+			tolua_function(l, "handleControlEvent", tolua_CCBProxy_handleControlEvent);
 			tolua_function(l, "handleKeypad", tolua_CCBProxy_handleKeypad);
 			tolua_function(l, "handleMenuEvent", tolua_CCBProxy_handleMenuEvent);
 			tolua_function(l, "handleAnimationComplate", tolua_CCBProxy_handleAnimationComplate);
@@ -252,11 +378,11 @@ TOLUA_API int luaopen_LuaProxy(lua_State* l){
 			tolua_function(l, "setSelectorHandler", tolua_CCBProxy_setSelectorHandler);
 			tolua_function(l, "deliverChildren", tolua_CCBProxy_deliverChildren);
 			tolua_function(l, "readCCBFromFile", tolua_CCBProxy_readCCBFromFile);
-			tolua_function(l, "fixLabel", tolua_CCBProxy_fixLabel);
-			tolua_function(l, "fixParticle", tolua_CCBProxy_fixParticle);
-			tolua_function(l, "fixParticleWithHandler", tolua_CCBProxy_fixParticleWithHandler);
-			tolua_function(l, "copyNode", tolua_CCBProxy_copyNode);
-			tolua_function(l, "duplicate", tolua_CCBProxy_duplicate);
+		tolua_endmodule(l);
+		tolua_cclass(l, "CCCameraEyeAction", "CCCameraEyeAction", "CCActionInterval", NULL);
+		tolua_beginmodule(l, "CCCameraEyeAction");
+			tolua_function(l, "create", tolua_CCCameraEyeAction_create);
+			tolua_function(l, "setStart", tolua_CCCameraEyeAction_setStart);
 		tolua_endmodule(l);
 		tolua_cclass(l, "CursorTextField", "CursorTextField", "CCTextFieldTTF", NULL);
 		tolua_beginmodule(l, "CursorTextField");
@@ -300,6 +426,13 @@ TOLUA_API int luaopen_LuaProxy(lua_State* l){
 			tolua_function(l, "createStroke", tolua_UIUtil_createStroke);
 			tolua_function(l, "shaderForKey", tolua_UIUtil_shaderForKey);
 			tolua_function(l, "setShaderWithChildren", tolua_UIUtil_setShaderWithChildren);
+			tolua_function(l, "fixLabel", tolua_UIUtil_fixLabel);
+			tolua_function(l, "fixParticle", tolua_UIUtil_fixParticle);
+			tolua_function(l, "fixParticleWithHandler", tolua_UIUtil_fixParticleWithHandler);
+			tolua_function(l, "copyNode", tolua_UIUtil_copyNode);
+			tolua_function(l, "duplicate", tolua_UIUtil_duplicate);
+			tolua_function(l, "changeParent", tolua_UIUtil_changeParent);
+			tolua_function(l, "positionRelative", tolua_UIUtil_positionRelative);
 		tolua_endmodule(l);
 	tolua_endmodule(l);
 	return 1;

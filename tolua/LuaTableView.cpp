@@ -32,7 +32,11 @@ LuaTableView * LuaTableView::createWithHandler(LuaEventHandler *h, CCSize s, CCN
 	r->initWithViewSize(s, c);
 	r->setDelegate(h);
 	r->autorelease();
+#if COCOS2D_VERSION < 0x00020100
 	r->_updateContentSize();
+#else
+	r->reloadData();
+#endif
 	return r;
 }
 LuaTableView::LuaTableView():_scrollOffset(0), _handler(0), _scrollNode(0), _scrollBar(0), _scrollTrack(0), _scrollTrackDelta(0){}
@@ -45,10 +49,12 @@ LuaTableView::~LuaTableView(){
 CCTableViewCell * LuaTableView::cellForTouch(CCTouch *t){
 	unsigned int index;
 	CCPoint point = this->getContainer()->convertTouchToNodeSpace(t);
+#if COCOS2D_VERSION < 0x00020100
 	if (m_eVordering == kCCTableViewFillTopDown) {
 		CCSize cellSize = m_pDataSource->cellSizeForTable(this);
 		point.y -= cellSize.height;
 	}
+#endif
 	index = this->_indexFromOffset(point);
 #if COCOS2D_VERSION >= 0x0020100
 	return this->cellAtIndex(index);
@@ -57,27 +63,32 @@ CCTableViewCell * LuaTableView::cellForTouch(CCTouch *t){
 #endif
 }
 bool LuaTableView::ccTouchBegan(CCTouch *t, CCEvent *e){
-	bool r = CCScrollView::ccTouchBegan(t, e);
+	bool r = CCTableView::ccTouchBegan(t, e);
 	if(r){
+		CCTableViewCell *c = cellForTouch(t);
 		LuaEventHandler *h = dynamic_cast<LuaEventHandler *>(m_pTableViewDelegate);
-		if(h){ h->tableCellTouchBegan(this, cellForTouch(t), t);}
+		if(c && h){
+			h->tableCellTouchBegan(this, c, t);
+		}
 	}
 	return r;
 }
 void LuaTableView::ccTouchEnded(CCTouch *pTouch, CCEvent *pEvent){
-	if (!this->isVisible()) {
+	if(!isVisible()){
 		return;
 	}
 	CCTableViewCell *cell = cellForTouch(pTouch);
-	if (m_pTouches->count() == 1 && !this->isTouchMoved()) {
-		if (cell) {
-			LuaEventHandler *h = dynamic_cast<LuaEventHandler *>(m_pTableViewDelegate);
-			if(h){ h->tableCellTouched(this, cell, pTouch);}
-			else{ m_pTableViewDelegate->tableCellTouched(this, cell);}
+	if(cell){
+		LuaEventHandler *h = dynamic_cast<LuaEventHandler *>(m_pTableViewDelegate);
+		if(m_pTouches->count() == 1 && !isTouchMoved()){
+			if(h){	h->tableCellTouched(this, cell, pTouch);}
+			else{	m_pTableViewDelegate->tableCellTouched(this, cell);}
+            m_pTableViewDelegate->tableCellUnhighlight(this, cell);
+		}else if(h){
+			h->tableCellTouchEnded(this, cell, pTouch);
 		}
 	}else{
-		LuaEventHandler *h = dynamic_cast<LuaEventHandler *>(m_pTableViewDelegate);
-		if(h){ h->tableCellTouchEnded(this, cell, pTouch);}
+		printf("LTV.touchEnded cell is null %f,%f\n", pTouch->getLocation().x, pTouch->getLocation().y);
 	}
 	CCScrollView::ccTouchEnded(pTouch, pEvent);
 }

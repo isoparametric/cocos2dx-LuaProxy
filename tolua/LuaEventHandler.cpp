@@ -168,7 +168,11 @@ LuaEventHandler * LuaEventHandler::handle(CCBAnimationManager *m, int handler){
 LuaEventHandler * LuaEventHandler::handle(CCHttpRequest *req, int handler){
 	if(req){
 		if(handler > 0){ handle(handler);}
+#ifdef httpresponse_selector
+		req->setResponseCallback(this, httpresponse_selector(LuaEventHandler::onHttpResponse));
+#else
 		req->setResponseCallback(this, callfuncND_selector(LuaEventHandler::onHttpResponse));
+#endif
 		CCHttpClient::getInstance()->send(req);
 		req->release();
 	}
@@ -177,6 +181,7 @@ LuaEventHandler * LuaEventHandler::handle(CCHttpRequest *req, int handler){
 
 void LuaEventHandler::unhandle(){
 	if(_handler > 0){
+		toluafix_remove_function_by_refid(_lua, _handler);
 		lua_unref(_lua, _handlerRef);
 		_handlerRef = 0;
 		_handler = 0;
@@ -248,12 +253,13 @@ void LuaEventHandler::editBoxEvent(const char *e, CCEditBox *eb){
 	}
 }
 #endif
-CCSize LuaEventHandler::cellSizeForTable(CCTableView *t){
+CCSize LuaEventHandler::tableCellSizeForIndex(CCTableView *t, unsigned int i){
 	CCSize r = CCSizeZero;
 	if(_handler){
 		LuaStack->pushString("cellSize");
 		LuaStack->pushCCObject(t, "CCTableView");
-		runLuaFunction(_handler, 2);
+		LuaStack->pushInt(i);
+		runLuaFunction(_handler, 3);
 		lua_State *l = luaStateForEngine();
 		tolua_Error err;
 		if(tolua_isusertype(l, -1, "CCSize", 0, &err)){
@@ -263,6 +269,9 @@ CCSize LuaEventHandler::cellSizeForTable(CCTableView *t){
 		finishRunLuaFunction(l);
 	}
 	return r;
+}
+CCSize LuaEventHandler::cellSizeForTable(CCTableView *t){
+	return tableCellSizeForIndex(t, -1);
 }
 CCTableViewCell * LuaEventHandler::tableCellAtIndex(CCTableView *t, unsigned int i){
 	CCTableViewCell *cell = t->dequeueCell();
@@ -294,36 +303,37 @@ unsigned int LuaEventHandler::numberOfCellsInTableView(CCTableView *t){
 	}
 	return r;
 }
+void LuaEventHandler::tableCellEvent(const char *e, CCTableView *t, CCTableViewCell *c, CCObject *v, const char *type){
+	if(_handler){
+		LuaStack->pushString(e);
+		LuaStack->pushCCObject(t, "CCTableView");
+		if(c){	LuaStack->pushCCObject(c, "CCTableViewCell");}
+		else{	LuaStack->pushNil();}
+		if(v && type){	LuaStack->pushCCObject(v, type);}
+		else{	LuaStack->pushNil();}
+		runLuaFunction(_handler, 4, true);
+	}
+}
 void LuaEventHandler::tableCellTouched(CCTableView *t, CCTableViewCell *c){
 	tableCellTouched(t, c, NULL);
 }
 void LuaEventHandler::tableCellTouched(CCTableView *t, CCTableViewCell *c, CCTouch *touch){
-	if(_handler){
-		LuaStack->pushString("cellTouched");
-		LuaStack->pushCCObject(t, "CCTableView");
-		LuaStack->pushCCObject(c, "CCTableViewCell");
-		LuaStack->pushCCObject(touch, "CCTouch");
-		runLuaFunction(_handler, 4, true);
-	}
+	tableCellEvent("cellTouched", t, c, touch, "CCTouch");
 }
 void LuaEventHandler::tableCellTouchBegan(CCTableView *t, CCTableViewCell *c, CCTouch *touch){
-	if(_handler){
-		LuaStack->pushString("cellTouchBegan");
-		LuaStack->pushCCObject(t, "CCTableView");
-		LuaStack->pushCCObject(c, "CCTableViewCell");
-		LuaStack->pushCCObject(touch, "CCTouch");
-		runLuaFunction(_handler, 4, true);
-	}
+	tableCellEvent("cellTouchBegan", t, c, touch, "CCTouch");
 }
 void LuaEventHandler::tableCellTouchEnded(CCTableView *t, CCTableViewCell *c, CCTouch *touch){
-	if(_handler){
-		LuaStack->pushString("cellTouchEnded");
-		LuaStack->pushCCObject(t, "CCTableView");
-		if(c){LuaStack->pushCCObject(c, "CCTableViewCell");}
-		else{LuaStack->pushNil();}
-		LuaStack->pushCCObject(touch, "CCTouch");
-		runLuaFunction(_handler, 4, true);
-	}
+	tableCellEvent("cellTouchEnded", t, c, touch, "CCTouch");
+}
+void LuaEventHandler::tableCellHighlight(CCTableView* t, CCTableViewCell* c){
+	tableCellEvent("cellHighlight", t, c);
+}
+void LuaEventHandler::tableCellUnhighlight(CCTableView *t, CCTableViewCell* c){
+	tableCellEvent("cellUnhighlight", t, c);
+}
+void LuaEventHandler::tableCellWillRecycle(CCTableView *t, CCTableViewCell* c){
+	tableCellEvent("cellWillRecycle", t, c);
 }
 void LuaEventHandler::scrollViewDidScroll(CCScrollView *s){
 	if(_handler){
@@ -359,6 +369,10 @@ void LuaEventHandler::onHttpResponse(CCNode *sender, void *data){
 		LuaStack->pushCCObject(this, "LuaEventHandler");
 		LuaStack->executeFunctionByHandler(_handler, 2);
 	}
+}
+
+void LuaEventHandler::onHttpResponse(CCHttpClient *c, CCHttpResponse *res){
+	onHttpResponse(NULL, (void *)res);
 }
 
 void LuaEventHandler::onIAPProductList(CCDictionary *prods){

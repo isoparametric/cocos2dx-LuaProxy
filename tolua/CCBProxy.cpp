@@ -25,8 +25,7 @@ THE SOFTWARE.
 #include "CCBProxy.h"
 #include "tolua++.h"
 
-CCBProxy::CCBProxy(){
-	_selectorHandler = NULL;
+CCBProxy::CCBProxy():_selectorHandler(0){
 	_memVars = CCDictionary::create();
 	_memVars->retain();
 	_handlers = CCArray::create();
@@ -38,6 +37,7 @@ CCBProxy::~CCBProxy(){
 	CC_SAFE_RELEASE(_selectorHandler);
 }
 void CCBProxy::releaseMembers(){
+/*
 	CCDictElement *e;
 	CCNode *n;
 	CCDICT_FOREACH(_memVars, e){
@@ -49,6 +49,9 @@ void CCBProxy::releaseMembers(){
 	CCARRAY_FOREACH(_handlers, o){
 		o->autorelease();
 	}
+//*/
+	_memVars->removeAllObjects();
+	_handlers->removeAllObjects();
 }
 
 CCBProxy * CCBProxy::initProxy(lua_State *l){
@@ -94,13 +97,17 @@ CCBSelectorResolver * CCBProxy::createNew(){
 	return dynamic_cast<CCBSelectorResolver *>(p);
 }
 
-void CCBProxy::handleEvent(CCControlButton *n, const int handler, bool multiTouches, CCControlEvent e){
+void CCBProxy::handleEvent(CCControl *n, const int handler, bool multiTouches, CCControlEvent e){
+//#if COCOS2D_VERSION > 0x00020100
+//	n->addHandleOfControlEvent(handler, e);
+//#else
 	LuaEventHandler *h = getHandler(handler);
 	if(!h){
 		h = addHandler(handler, multiTouches)
 			->setTypename("CCControlButton");
 	}
 	n->addTargetWithActionForControlEvents(h, cccontrol_selector(LuaEventHandler::controlAction), e);
+//#endif
 }
 
 #ifdef LUAPROXY_CCEDITBOX_ENABLED
@@ -216,183 +223,12 @@ void CCBProxy::nodeToTypeForLua(lua_State *l, CCObject *o, const char *t){
 CCNode * CCBProxy::readCCBFromFile(const char *f){
 	//assert(f && strlen(f) > 0, "File name must not be null or empty string.");
 	CCBReader * reader = new CCBReader(CCNodeLoaderLibrary::sharedCCNodeLoaderLibrary());
-	reader->autorelease();
 #if COCOS2D_VERSION < 0x00020100
 	reader->hasScriptingOwner = true;
 #endif
 	CCNode *node = reader->readNodeGraphFromFile(f, this);
 	CCBAnimationManager *m = reader->getAnimationManager();
+	reader->autorelease();
 	node->setUserObject(m);
 	return node;
-}
-
-void CCBProxy::fixLabel(CCNode *o, const float rate, bool withChild, const char *font){
-	CCLabelTTF *l = dynamic_cast<CCLabelTTF *>(o);
-	if(l){
-		l->setScale(1 / rate);
-		l->setFontSize(l->getFontSize() * rate);
-		CCSize s = l->getDimensions();
-		s.width *= rate;
-		s.height *= rate;
-		l->setDimensions(s);
-		if(font){
-			l->setFontName(font);
-		}
-	}
-	if(withChild){
-		CCObject *s;
-		CCARRAY_FOREACH(o->getChildren(), s){
-			fixLabel((CCNode *)s, rate, true, font);
-		}
-	}
-}
-void CCBProxy::fixParticle(CCNode *o, const float dur, const float life, bool withChild){
-	CCParticleSystemQuad *e = dynamic_cast<CCParticleSystemQuad *>(o);
-	if(e){
-		printf("ccbproxy fixPar %x %x\n", e, e->getTexture());
-		e->setDuration(dur);
-		e->setLife(life);
-		e->setAutoRemoveOnFinish(true);
-	}
-	if(withChild){
-		CCObject *s;
-		CCARRAY_FOREACH(o->getChildren(), s){
-			fixParticle((CCNode *)s, dur, life, true);
-		}
-	}
-}
-void CCBProxy::fixParticleWithHandler(CCNode *o, LuaEventHandler *h, bool withChild){
-	CCParticleSystemQuad *e = dynamic_cast<CCParticleSystemQuad *>(o);
-	if(e){
-		h->action(e);
-	}
-	if(withChild){
-		CCObject *s;
-		CCARRAY_FOREACH(o->getChildren(), s){
-			fixParticleWithHandler((CCNode *)s, h, true);
-		}
-	}
-}
-#define CREATE_AND_DUPLICATE(r,T,n) if(dynamic_cast<T *>(n)){T *e = T::create();duplicate(e, (T *)n);r = e;}
-CCNode * CCBProxy::copyNode(CCNode *n){
-	CCNode *r = NULL;
-	if(n){
-		if(!r){	CREATE_AND_DUPLICATE(r, CCLabelTTF, n);}
-		if(!r){	CREATE_AND_DUPLICATE(r, CCLabelBMFont, n);}
-		if(!r){	CREATE_AND_DUPLICATE(r, CCParticleSystemQuad, n);}
-		if(!r){	CREATE_AND_DUPLICATE(r, CCSprite, n);}
-		if(!r){	CREATE_AND_DUPLICATE(r, CCScale9Sprite, n);}
-		if(!r){
-			r = CCNode::create();
-			duplicate(r, n);
-		}
-		CCObject *o = NULL;
-		CCARRAY_FOREACH(n->getChildren(), o){
-			r->addChild(copyNode((CCNode *)o));
-		}
-	}
-	return r;
-}
-void CCBProxy::duplicate(CCScale9Sprite *n, CCScale9Sprite *o){
-	if(!n || !o)return;
-	n->setPreferredSize(o->getPreferredSize());
-	n->setCapInsets(o->getCapInsets());
-	n->setOpacity(o->getOpacity());
-	n->setColor(o->getColor());
-	duplicate((CCNode *)n, (CCNode *)o);
-}
-void CCBProxy::duplicate(CCSprite *n, CCSprite *o){
-	if(!n || !o)return;
-	n->setDisplayFrame(o->displayFrame());
-	n->setOpacity(o->getOpacity());
-	n->setColor(o->getColor());
-	n->setFlipX(o->isFlipX());
-	n->setFlipY(o->isFlipY());
-	n->setBlendFunc(o->getBlendFunc());
-	duplicate((CCNode *)n, (CCNode *)o);
-}
-void CCBProxy::duplicate(CCLabelBMFont *n, CCLabelBMFont *o){
-	if(!n || !o)return;
-	n->setFntFile(o->getFntFile());
-	n->setOpacity(o->getOpacity());
-	n->setColor(o->getColor());
-	n->setBlendFunc(o->getBlendFunc());
-	duplicate((CCNode *)n, (CCNode *)o);
-}
-void CCBProxy::duplicate(CCLabelTTF *n, CCLabelTTF *o){
-	if(!n || !o)return;
-	n->setFontName(o->getFontName());
-	n->setFontSize(o->getFontSize());
-	n->setOpacity(o->getOpacity());
-	n->setDimensions(o->getDimensions());
-	n->setHorizontalAlignment(o->getHorizontalAlignment());
-	n->setVerticalAlignment(o->getVerticalAlignment());
-	duplicate((CCNode *)n, (CCNode *)o);
-}
-void CCBProxy::duplicate(CCNode *n, CCNode *o){
-	if(!n || !o)return;
-	n->setPosition(o->getPosition());
-	n->setContentSize(o->getContentSize());
-	n->setAnchorPoint(o->getAnchorPoint());
-	n->setScaleX(o->getScaleX());
-	n->setScaleY(o->getScaleY());
-	n->setRotation(o->getRotation());
-	n->setVisible(o->isVisible());
-	n->setVertexZ(o->getVertexZ());
-}
-void CCBProxy::duplicate(CCParticleSystemQuad *n, CCParticleSystemQuad *o){
-	if(!n || !o)return;
-	duplicate((CCParticleSystem *)n, (CCParticleSystem *)o);
-}
-void CCBProxy::duplicate(CCParticleSystem *n, CCParticleSystem *o){
-	if(!n || !o)return;
-	n->setEmitterMode(o->getEmitterMode());
-	n->setBatchNode(o->getBatchNode());
-	n->setDuration(o->getDuration());
-	n->setSourcePosition(o->getSourcePosition());
-	n->setPosVar(o->getPosVar());
-	n->setLife(o->getLife());
-	n->setLifeVar(o->getLifeVar());
-	n->setAngle(o->getAngle());
-	n->setAngleVar(o->getAngleVar());
-	if(n->getEmitterMode() == kCCParticleModeRadius){
-		n->setStartRadius(o->getStartRadius());
-		n->setStartRadiusVar(o->getStartRadiusVar());
-		n->setEndRadius(o->getEndRadius());
-		n->setEndRadiusVar(o->getEndRadiusVar());
-		n->setRotatePerSecond(o->getRotatePerSecond());
-		n->setRotatePerSecondVar(o->getRotatePerSecondVar());
-	}else if(n->getEmitterMode() == kCCParticleModeGravity){
-		n->setTangentialAccel(o->getTangentialAccel());
-		n->setTangentialAccelVar(o->getTangentialAccelVar());
-		n->setGravity(o->getGravity());
-		n->setSpeed(o->getSpeed());
-		n->setSpeedVar(o->getSpeedVar());
-		n->setRadialAccel(o->getRadialAccel());
-		n->setRadialAccelVar(o->getRadialAccelVar());
-	}
-	n->setScaleX(o->getScaleX());
-	n->setScaleY(o->getScaleY());
-	n->setRotation(o->getRotation());
-	n->setBlendAdditive(o->isBlendAdditive());
-	n->setStartSize(o->getStartSize());
-	n->setStartSizeVar(o->getStartSizeVar());
-	n->setEndSize(o->getEndSize());
-	n->setEndSizeVar(o->getEndSizeVar());
-	n->setStartColor(o->getStartColor());
-	n->setStartColorVar(o->getStartColorVar());
-	n->setEndColor(o->getEndColor());
-	n->setEndColorVar(o->getEndColorVar());
-	n->setStartSpin(o->getStartSpin());
-	n->setStartSpinVar(o->getStartSpinVar());
-	n->setEndSpin(o->getEndSpin());
-	n->setEndSpinVar(o->getEndSpinVar());
-	n->setEmissionRate(o->getEmissionRate());
-	n->setTotalParticles(o->getTotalParticles());
-	n->setTexture(o->getTexture());
-	n->setBlendFunc(o->getBlendFunc());
-	n->setOpacityModifyRGB(o->getOpacityModifyRGB());
-	n->setPositionType(o->getPositionType());
-	n->setAutoRemoveOnFinish(o->isAutoRemoveOnFinish());
-	duplicate((CCNode *)n, (CCNode *)o);
 }
