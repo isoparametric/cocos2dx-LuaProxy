@@ -166,7 +166,7 @@ TOLUA_API int tolua_CC_Extension_open(lua_State* l){
 	tolua_usertype(l, "CCHttpRequest");
 	tolua_usertype(l, "CCHttpResponse");
 	tolua_usertype(l, "CCScale9Sprite");
-	tolua_usertype(l, "CCScrollView");
+	//tolua_usertype(l, "CCScrollView");
 	tolua_usertype(l, "CCTableView");
 	tolua_usertype(l, "CCTableViewCell");
 	tolua_usertype(l, "CCTableViewDataSource");
@@ -361,6 +361,7 @@ TOLUA_API int tolua_CC_Extension_open(lua_State* l){
 			tolua_function(l, "resizableSpriteWithCapInsets", tolua_CCScale9Sprite_resizableSpriteWithCapInsets);
 			tolua_function(l, "updateWithBatchNode", tolua_CCScale9Sprite_updateWithBatchNode);
 		tolua_endmodule(l);
+        /*
 		tolua_constant(l, "kCCScrollViewDirectionNone", kCCScrollViewDirectionNone);
 		tolua_constant(l, "kCCScrollViewDirectionHorizontal", kCCScrollViewDirectionHorizontal);
 		tolua_constant(l, "kCCScrollViewDirectionVertical", kCCScrollViewDirectionVertical);
@@ -391,6 +392,7 @@ TOLUA_API int tolua_CC_Extension_open(lua_State* l){
 			tolua_function(l, "setZoomScale", tolua_CCScrollView_setZoomScale);
 			tolua_function(l, "setZoomScaleInDuration", tolua_CCScrollView_setZoomScaleInDuration);
 		tolua_endmodule(l);
+        */
 		tolua_constant(l, "kCCTableViewFillTopDown", kCCTableViewFillTopDown);
 		tolua_constant(l, "kCCTableViewFillBottomUp", kCCTableViewFillBottomUp);
 		tolua_cclass(l, "CCTableViewDataSource", "CCTableViewDataSource", "", NULL);
