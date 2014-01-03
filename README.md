@@ -1,11 +1,28 @@
 #cocos2dx-LuaProxy#
-=================
-LuaProxy for cocos2d-x, include CocosBuilder support for lua, and other cocos2d-extension support for lua, and easy to use function.
+-------
+Current version: 2.1.5, support cocos2d-x 2.1.5 and 2.2.x  
+LuaProxy for cocos2d-x, include CocosBuilder support for lua, and other cocos2d-extension support for lua, and easy to use function.  
+当前版本：2.1.5，支持cocos2d-x 2.1.5及2.2.x  
+LuaProxy基于cocos2d-x，主要用于支持在Lua中使用CocosBuilder输出的界面、动画文件，以及添加cocos2d扩展库的Lua支持，还有另外一些易用功能。
 
-##For cocos2d-x 2.1.4#
-Don't add tolua_extensions_ccb_open(lua_State) to AppDelegate.cpp.
+LuaProxy have been merged in quick-cocos2d-x.
+LuaProxy已被整合进quick-cocos2d-x。
+
+##For cocos2d-x 3.0 alpha#
+Changes of 3.0 is huge, I think I'll use more time to port.  
+And, I hope to support JavaScript Binding, so LuaProxy is going to rename to "ScriptProxy". But lua is main target to support.  
+Most files had changed name, because this is a new start, for LuaProxy, and your game project.  
+3.0的改变很巨大，我大概还要一段时间来移植。我希望可以支持JSB，所以LuaProxy要改名为ScriptProxy，但Lua仍然是主要的支持目标。  
+很多文件会改名，对LuaProxy来说这是一个新的开始，对你的游戏项目如是。  
+
+##LuaProxy 2.1.4 for cocos2d-x 2.1.4#
+Don't add tolua_extensions_ccb_open(lua_State) to AppDelegate.cpp.  
+For iOS: And remove CCBProxy.*, Lua_extensions_CCB.* at lib/cocos2d/lua/cocos2dx_support (4 files).  
+请勿添加tolua_extensions_ccb_open(lua_State)的调用。  
+iOS中要从Xcode工程中移除CCBProxy.*, Lua_extensions_CCB.*（共4个文件）。
 
 ##Change Log#
+2013-8-27 LuaProxy 2.1.5 up. Rename class CCBProxy -> LuaProxy, supported cocos2d-x 3.0, change directory struct.  
 2013-6-19 Moved some functions about ui to ui/UIUtil from CCBProxy. Moved UIEventDispatcher into UIUtil.h/.cpp no longer stand alone. Add CameraEyeAction to do some 3d effect.  
 2013-6-14 Add CCGLProgram support for lua.  
 2013-6-9 Support cocos2d-x 2.1.3.  
@@ -18,8 +35,7 @@ Don't add tolua_extensions_ccb_open(lua_State) to AppDelegate.cpp.
 
 ##Step 1 Add LuaProxy files to your project#
 Create a Lua based cocos2d-x project, or open your project that added Lua support.  
-In Visual Studio, open Project Property, in C/C++ - Additional Include Directories, add LuaProxy source code directory, and add all source files.  
-In Xcode, add all source files. You may safety remove ui/UIEventDispatcher.cpp(and .h), it's just design for win32.
+Copy LuaProxy directory into Classes, add all file into project (ui/* is optional).  
 
 ##Step 2 Add C++ Code#
 Open CCAppDelegate.cpp, add include like this:  
@@ -30,7 +46,7 @@ Move to the line that got CCLuaEngine, add this:
 
 Now you can do those things in lua, but we must create a CCBProxy at first, I wrote this in lua:  
 
-> local proxy = CCBProxy:create()  
+> local proxy = LuaProxy:create()  
 -- !!  
 -- If you want to handle CCControlButton, you must retain the proxy,  
 -- And kept variable "proxy" to global or global table.  
@@ -52,7 +68,7 @@ We'd loaded a ccbi as layer, but you want access a CCLabelTTF, marked "owner" an
 
 > local lbl = tolua.cast(proxy:getNode"label", "CCLabelTTF")  
 lbl:setString("some string")  
-local btn = proxy:getNodeWithType("button", "CCControlButton")
+local btn = tolua.cast(proxy:getNode"button", "CCControlButton")
 
 When CCBProxy read ccbi, it has saved all member variable into a CCDictionary.  
 So if you'd loaded other ccbi and any variable defined same name, the old one will be lost in the CCDictionary.
