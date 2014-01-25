@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "tolua++.h"
 #include "tolua_fix.h"
 #include "CCLuaEngine.h"
+#include "CCHttpClient.h"
 
 USING_NS_CC;
 USING_NS_CC_EXT;
